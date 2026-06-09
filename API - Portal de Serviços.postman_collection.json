@@ -1,0 +1,215 @@
+{
+  "info": {
+    "_postman_id": "0d72e6fb-7740-4865-b5af-b8d2f3dc0309",
+    "name": "API - Portal de Serviços",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "51905773",
+    "_collection_link": "https://go.postman.co/collection/51905773-0d72e6fb-7740-4865-b5af-b8d2f3dc0309?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "1. Prestadores",
+      "item": [
+        {
+          "name": "Cadastrar Prestador",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"nome\": \"João da Silva\",\r\n  \"email\": \"joao@email.com\",\r\n  \"cpf_cnpj\": \"12345678901\",\r\n  \"senha\": \"senhaforte123\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/prestadores",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "prestadores"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Todos os Prestadores",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/prestadores",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "prestadores"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Buscar Prestador por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/prestadores/1",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "prestadores",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remover Prestador",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/prestadores/1",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "prestadores",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Serviços",
+      "item": [
+        {
+          "name": "Cadastrar Serviço",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"titulo\": \"Limpeza de Estofos\",\r\n  \"categoria\": \"Limpeza\",\r\n  \"valor\": 50\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/servicos",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "servicos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Serviços",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/servicos",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "servicos"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Pedidos",
+      "item": [
+        {
+          "name": "Listar Pedidos",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/pedidos",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "pedidos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Atualizar Status do Pedido",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"acao\": \"aceitar\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/pedidos/1/status",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "pedidos",
+                "1",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
