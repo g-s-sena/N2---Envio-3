@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express'
+import bcrypt from 'bcrypt'
 import {
   criarPrestadorDto,
   atualizarPrestadorDto,
@@ -15,8 +16,23 @@ type Prestador = {
 }
 
 // Banco de dados em memória para prestadores
-let prestadores: Prestador[] = []
+export let prestadores: Prestador[] = []
 let proximoId = 1
+
+// ==========================================
+// INJEÇÃO DO UTILIZADOR DE TESTE
+// ==========================================
+// Assim que o servidor liga, este utilizador é criado automaticamente
+const saltTeste = bcrypt.genSaltSync(10)
+prestadores.push({
+  id: proximoId++,
+  nome: 'Carlos Teste',
+  email: 'teste@teste.com',
+  cpf_cnpj: '11122233344',
+  senha: bcrypt.hashSync('123456', saltTeste) // A senha para entrar será "123456"
+})
+// ==========================================
+
 
 // GET /prestadores
 export function listarPrestadores(req: Request, res: Response) {
@@ -40,7 +56,7 @@ export function buscarPrestador(req: Request, res: Response) {
 }
 
 // POST /prestadores
-export function criarPrestador(req: Request, res: Response) {
+export async function criarPrestador(req: Request, res: Response) {
   const resultado = criarPrestadorDto.safeParse(req.body)
   
   if (!resultado.success) {
@@ -49,7 +65,12 @@ export function criarPrestador(req: Request, res: Response) {
   }
   
   const { nome, email, cpf_cnpj, senha } = resultado.data
-  const novo: Prestador = { id: proximoId++, nome, email, cpf_cnpj, senha }
+  
+  // Encriptar a senha
+  const salt = await bcrypt.genSalt(10)
+  const senhaHash = await bcrypt.hash(senha, salt)
+
+  const novo: Prestador = { id: proximoId++, nome, email, cpf_cnpj, senha: senhaHash }
   
   prestadores.push(novo)
   
@@ -59,7 +80,7 @@ export function criarPrestador(req: Request, res: Response) {
 }
 
 // PUT /prestadores/:id
-export function substituirPrestador(req: Request, res: Response) {
+export async function substituirPrestador(req: Request, res: Response) {
   const id = Number(req.params.id)
   const resultado = substituirPrestadorDto.safeParse(req.body)
   
@@ -74,14 +95,18 @@ export function substituirPrestador(req: Request, res: Response) {
     return
   }
   
-  prestadores[indice] = { id, ...resultado.data }
+  // Como é PUT (substituição completa), tem sempre senha, logo encriptamos
+  const salt = await bcrypt.genSalt(10)
+  const senhaHash = await bcrypt.hash(resultado.data.senha, salt)
+
+  prestadores[indice] = { id, ...resultado.data, senha: senhaHash }
   
   const { senha, ...prestadorAtualizado } = prestadores[indice]
   res.json(prestadorAtualizado)
 }
 
 // PATCH /prestadores/:id
-export function atualizarPrestador(req: Request, res: Response) {
+export async function atualizarPrestador(req: Request, res: Response) {
   const id = Number(req.params.id)
   const resultado = atualizarPrestadorDto.safeParse(req.body)
   
@@ -96,7 +121,15 @@ export function atualizarPrestador(req: Request, res: Response) {
     return
   }
   
-  Object.assign(prestador, resultado.data)
+  const dadosAtualizados = { ...resultado.data }
+
+  // Se a requisição enviou uma nova senha, também precisamos encriptá-la
+  if (dadosAtualizados.senha) {
+    const salt = await bcrypt.genSalt(10)
+    dadosAtualizados.senha = await bcrypt.hash(dadosAtualizados.senha, salt)
+  }
+
+  Object.assign(prestador, dadosAtualizados)
   
   const { senha, ...prestadorAtualizado } = prestador
   res.json(prestadorAtualizado)

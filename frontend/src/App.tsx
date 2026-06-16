@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 // 1. TIPAGEM E DADOS GLOBAIS
 // ==========================================
 interface Pedido {
-  id: string;
+  id: string | number;
   cliente: string;
   servico: string;
-  horario: string;
+  status?: string;
+  horario?: string;
   obs?: string;
 }
 
@@ -27,29 +28,32 @@ const estiloAnimacao = `
 `;
 
 export default function App() {
-  const [tela, setTela] = useState('home');
-  const [carregando, setCarregando] = useState(true);
+  // Começa no login, a não ser que já exista um token guardado
+  const [tela, setTela] = useState(localStorage.getItem('token_prestador') ? 'home' : 'login');
+  const [carregando, setCarregando] = useState(false);
   const [notificacao, setNotificacao] = useState<{ visivel: boolean; mensagem: string; tipo: 'sucesso' | 'erro' }>({ visivel: false, mensagem: '', tipo: 'sucesso' });
 
-  const [pedidosPendentes, setPedidosPendentes] = useState<Pedido[]>([
-    { id: '1', cliente: 'João Silva', servico: 'Reparo de Chuveiro', horario: '15 abr, 14h', obs: 'Preciso resolver hoje se possível, tem criança em casa.' },
-    { id: '2', cliente: 'Ana Lima', servico: 'Instalação Elétrica', horario: '16 abr, Tarde' }
-  ]);
+  // Estado para os pedidos que vêm da API
+  const [pedidosPendentes, setPedidosPendentes] = useState<Pedido[]>([]);
 
+  // Efeito simples de loading ao trocar de ecrã
   useEffect(() => {
-    setCarregando(true);
-    const timer = setTimeout(() => setCarregando(false), 500);
-    return () => clearTimeout(timer);
+    if (tela !== 'login') {
+      setCarregando(true);
+      const timer = setTimeout(() => setCarregando(false), 300);
+      return () => clearTimeout(timer);
+    }
   }, [tela]);
 
-  const processarPedido = (id: string, acao: 'aceitar' | 'recusar') => {
-    setPedidosPendentes(pedidosPendentes.filter(p => p.id !== id));
-    mostrarNotificacao(acao === 'aceitar' ? 'Pedido aceito e agendado!' : 'Pedido recusado.', acao === 'aceitar' ? 'sucesso' : 'erro');
-  };
-
+  // Função Global de Notificação
   const mostrarNotificacao = (mensagem: string, tipo: 'sucesso' | 'erro') => {
     setNotificacao({ visivel: true, mensagem, tipo });
     setTimeout(() => setNotificacao({ visivel: false, mensagem: '', tipo: 'sucesso' }), 3000);
+  };
+
+  const fazerLogout = () => {
+    localStorage.removeItem('token_prestador');
+    setTela('login');
   };
 
   // ==========================================
@@ -58,42 +62,119 @@ export default function App() {
   const Toast = () => {
     if (!notificacao.visivel) return null;
     return (
-      <div className="toast" style={{ position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', backgroundColor: notificacao.tipo === 'sucesso' ? cores.verde : cores.vermelho, color: 'white', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', fontSize: '14px', zIndex: 1000, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className="toast" style={{ position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', backgroundColor: notificacao.tipo === 'sucesso' ? cores.verde : cores.vermelho, color: 'white', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', fontSize: '14px', zIndex: 1000, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', gap: '8px', width: 'max-content', maxWidth: '90%' }}>
         {notificacao.tipo === 'sucesso' ? '✓' : '✕'} {notificacao.mensagem}
       </div>
     );
   };
 
-  const BottomNav = () => (
-    <div style={{ backgroundColor: 'white', position: 'fixed', bottom: 0, width: '100%', maxWidth: '400px', display: 'flex', justifyContent: 'space-around', padding: '12px 0', borderTop: '1px solid #E2E8F0', zIndex: 100 }}>
-      {[
-        { id: 'home', icone: '🏠', label: 'Início' },
-        { id: 'pedidos', icone: '📋', label: 'Pedidos' },
-        { id: 'assinatura', icone: '💳', label: 'Planos' },
-        { id: 'perfil', icone: '👤', label: 'Perfil' }
-      ].map((item) => {
-        const ativo = tela === item.id || (tela === 'ganhos' && item.id === 'perfil');
-        return (
-          <div key={item.id} onClick={() => setTela(item.id)} style={{ textAlign: 'center', cursor: 'pointer', color: ativo ? cores.azul : cores.textoSuave, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', opacity: ativo ? 1 : 0.6, filter: ativo ? 'none' : 'grayscale(100%)' }}>
-            <span style={{ fontSize: '20px' }}>{item.icone}</span>
-            <strong style={{ fontSize: '10px', color: ativo ? cores.azul : cores.textoSuave }}>{item.label}</strong>
-          </div>
-        );
-      })}
-    </div>
-  );
+  const BottomNav = () => {
+    if (tela === 'login') return null; // Não mostra barra de navegação no login
+    
+    return (
+      <div style={{ backgroundColor: 'white', position: 'fixed', bottom: 0, width: '100%', maxWidth: '400px', display: 'flex', justifyContent: 'space-around', padding: '12px 0', borderTop: '1px solid #E2E8F0', zIndex: 100 }}>
+        {[
+          { id: 'home', icone: '🏠', label: 'Início' },
+          { id: 'pedidos', icone: '📋', label: 'Pedidos' },
+          { id: 'assinatura', icone: '💳', label: 'Planos' },
+          { id: 'perfil', icone: '👤', label: 'Perfil' }
+        ].map((item) => {
+          const ativo = tela === item.id || (tela === 'ganhos' && item.id === 'perfil');
+          return (
+            <div key={item.id} onClick={() => setTela(item.id)} style={{ textAlign: 'center', cursor: 'pointer', color: ativo ? cores.azul : cores.textoSuave, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', opacity: ativo ? 1 : 0.6, filter: ativo ? 'none' : 'grayscale(100%)' }}>
+              <span style={{ fontSize: '20px' }}>{item.icone}</span>
+              <strong style={{ fontSize: '10px', color: ativo ? cores.azul : cores.textoSuave }}>{item.label}</strong>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   // ==========================================
-  // 3. TELAS ATUALIZADAS
+  // 3. TELAS DA APLICAÇÃO
   // ==========================================
+
+  // --- NOVA TELA DE LOGIN ---
+  const RenderLogin = () => {
+    const [email, setEmail] = useState('');
+    const [senha, setSenha] = useState('');
+    const [carregandoLogin, setCarregandoLogin] = useState(false);
+
+    const handleLogin = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setCarregandoLogin(true);
+
+      try {
+        const resposta = await fetch('http://localhost:3000/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, senha })
+        });
+
+        const dados = await resposta.json();
+
+        if (resposta.ok) {
+          localStorage.setItem('token_prestador', dados.token);
+          mostrarNotificacao('Login realizado com sucesso!', 'sucesso');
+          setTela('home');
+        } else {
+          mostrarNotificacao(dados.erro || 'Erro ao fazer login.', 'erro');
+        }
+      } catch (error) {
+        mostrarNotificacao('Erro de conexão com o servidor.', 'erro');
+      } finally {
+        setCarregandoLogin(false);
+      }
+    };
+
+    return (
+      <div className="animar-entrada" style={{ backgroundColor: cores.navy, minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 30px', color: 'white' }}>
+        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <h1 style={{ fontSize: '42px', fontWeight: '300', margin: 0, color: cores.azul }}>Nexxos</h1>
+          <p style={{ color: cores.textoSuave, marginTop: '10px' }}>Portal de Serviços Profissionais</p>
+        </div>
+
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <label style={{ fontSize: '14px', color: cores.textoSuave, marginBottom: '8px', display: 'block' }}>E-mail</label>
+            <input 
+              type="email" 
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              style={{ width: '100%', padding: '14px', borderRadius: '12px', border: 'none', backgroundColor: cores.navyCard, color: 'white', boxSizing: 'border-box' }}
+              placeholder="seu@email.com"
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: '14px', color: cores.textoSuave, marginBottom: '8px', display: 'block' }}>Senha</label>
+            <input 
+              type="password" 
+              value={senha}
+              onChange={e => setSenha(e.target.value)}
+              required
+              style={{ width: '100%', padding: '14px', borderRadius: '12px', border: 'none', backgroundColor: cores.navyCard, color: 'white', boxSizing: 'border-box' }}
+              placeholder="••••••••"
+            />
+          </div>
+          
+          <button type="submit" disabled={carregandoLogin} style={{ width: '100%', padding: '16px', borderRadius: '12px', border: 'none', backgroundColor: cores.azul, color: 'white', fontWeight: 'bold', fontSize: '16px', marginTop: '16px', cursor: carregandoLogin ? 'not-allowed' : 'pointer', opacity: carregandoLogin ? 0.7 : 1 }}>
+            {carregandoLogin ? 'A Entrar...' : 'Entrar'}
+          </button>
+        </form>
+      </div>
+    );
+  };
+
   const RenderHome = () => (
     <div className="animar-entrada" style={{ backgroundColor: cores.fundo, minHeight: '100vh', paddingBottom: '80px' }}>
       <div style={{ backgroundColor: cores.navy, color: 'white', padding: '30px 20px', borderBottomLeftRadius: '24px', borderBottomRightRadius: '24px' }}>
-        <p style={{ margin: 0, fontSize: '14px', color: cores.textoSuave }}>Olá, <strong>Carlos</strong> 🔧</p>
+        <p style={{ margin: 0, fontSize: '14px', color: cores.textoSuave }}>Olá, <strong>Profissional</strong> 🔧</p>
         <h1 style={{ margin: '5px 0 25px 0', fontSize: '28px', fontWeight: '300' }}>Nexxos</h1>
         <div style={{ display: 'flex', gap: '12px' }}>
           <div style={{ backgroundColor: cores.navyCard, padding: '15px 10px', borderRadius: '12px', flex: 1, textAlign: 'center' }}>
-            <h2 style={{ margin: 0, fontSize: '20px' }}>{pedidosPendentes.length}</h2>
+            <h2 style={{ margin: 0, fontSize: '20px' }}>{Array.isArray(pedidosPendentes) ? pedidosPendentes.length : 0}</h2>
             <p style={{ margin: 0, fontSize: '11px', color: cores.textoSuave }}>Novas sol.</p>
           </div>
           <div style={{ backgroundColor: cores.navyCard, padding: '15px 10px', borderRadius: '12px', flex: 1, textAlign: 'center' }}>
@@ -126,41 +207,113 @@ export default function App() {
     </div>
   );
 
-  const RenderPedidos = () => (
-    <div className="animar-entrada" style={{ padding: '24px 20px', backgroundColor: cores.fundo, minHeight: '100vh', paddingBottom: '80px' }}>
-      <h2 style={{ color: cores.navy, marginBottom: '20px', fontSize: '24px' }}>Novas Solicitações</h2>
+  const RenderPedidos = () => {
+    // Busca os pedidos reais da API protegida
+    useEffect(() => {
+      const fetchPedidos = async () => {
+        const token = localStorage.getItem('token_prestador');
+        
+        try {
+          const resposta = await fetch('http://localhost:3000/pedidos', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          if (resposta.status === 401) {
+            fazerLogout(); // Se o token for inválido, volta para o login
+            return;
+          }
+
+          if (resposta.ok) {
+            const dados = await resposta.json();
+            
+            // 🐛 DEBUG: Verifica o que a API devolve
+            console.log("O que a API devolveu?", dados); 
+
+            // 🛡️ PROTEÇÃO: Garante que só faz o filtro se for um array
+            if (Array.isArray(dados)) {
+              const aguardando = dados.filter((p: any) => p.status === 'Aguardando');
+              setPedidosPendentes(aguardando);
+            } else {
+              console.error("A API não devolveu uma lista de pedidos!");
+              setPedidosPendentes([]); // Resgata a aplicação para não quebrar a tela
+            }
+          }
+        } catch (error) {
+          console.error("Erro ao buscar pedidos", error);
+          setPedidosPendentes([]); // Resgata em caso de erro de rede
+        }
+      };
+
+      fetchPedidos();
+    }, []);
+
+    // Atualiza o pedido na API (aceitar ou recusar)
+    const processarPedido = async (id: string | number, acao: 'aceitar' | 'recusar') => {
+      const token = localStorage.getItem('token_prestador');
       
-      {pedidosPendentes.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px 20px', color: cores.textoSuave }}>
-          <div style={{ fontSize: '48px', opacity: 0.5, marginBottom: '10px' }}>✅</div>
-          <p>Você não possui novas solicitações no momento.</p>
-        </div>
-      ) : (
-        pedidosPendentes.map((pedido) => (
-          <div key={pedido.id} style={{ backgroundColor: 'white', padding: '20px', borderRadius: '16px', marginBottom: '20px', border: '1px solid #E2E8F0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <strong style={{ fontSize: '18px', color: cores.textoCard }}>{pedido.cliente}</strong>
-              <span style={{ backgroundColor: '#FEFCBF', color: '#B7791F', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>Aguardando</span>
-            </div>
-            <p style={{ fontSize: '14px', color: cores.textoSuave, margin: '8px 0' }}>{pedido.servico} • {pedido.horario}</p>
-            {pedido.obs && (
-              <div style={{ backgroundColor: cores.fundo, padding: '12px', borderRadius: '8px', fontSize: '13px', color: '#718096', margin: '12px 0', fontStyle: 'italic' }}>
-                "{pedido.obs}"
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-              <button onClick={() => processarPedido(pedido.id, 'aceitar')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: cores.verde, color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
-                ✓ Aceitar
-              </button>
-              <button onClick={() => processarPedido(pedido.id, 'recusar')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid', borderColor: cores.vermelho, backgroundColor: 'white', color: cores.vermelho, fontWeight: 'bold', cursor: 'pointer' }}>
-                ✕ Recusar
-              </button>
-            </div>
+      try {
+        const resposta = await fetch(`http://localhost:3000/pedidos/${id}/status`, {
+          method: 'PATCH',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ acao })
+        });
+
+        if (resposta.ok) {
+          // Garante que só filtra se pedidosPendentes for um array válido
+          if (Array.isArray(pedidosPendentes)) {
+             setPedidosPendentes(pedidosPendentes.filter(p => p.id !== id));
+          }
+          mostrarNotificacao(acao === 'aceitar' ? 'Pedido aceite e agendado!' : 'Pedido recusado.', acao === 'aceitar' ? 'sucesso' : 'erro');
+        } else {
+          mostrarNotificacao('Erro ao processar o pedido.', 'erro');
+        }
+      } catch (error) {
+        mostrarNotificacao('Erro de comunicação com o servidor.', 'erro');
+      }
+    };
+
+    // Garante sempre que temos um array para avaliar
+    const listaDePedidosSegura = Array.isArray(pedidosPendentes) ? pedidosPendentes : [];
+
+    return (
+      <div className="animar-entrada" style={{ padding: '24px 20px', backgroundColor: cores.fundo, minHeight: '100vh', paddingBottom: '80px' }}>
+        <h2 style={{ color: cores.navy, marginBottom: '20px', fontSize: '24px' }}>Novas Solicitações</h2>
+        
+        {listaDePedidosSegura.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: cores.textoSuave }}>
+            <div style={{ fontSize: '48px', opacity: 0.5, marginBottom: '10px' }}>✅</div>
+            <p>Você não possui novas solicitações no momento.</p>
           </div>
-        ))
-      )}
-    </div>
-  );
+        ) : (
+          listaDePedidosSegura.map((pedido) => (
+            <div key={pedido.id} style={{ backgroundColor: 'white', padding: '20px', borderRadius: '16px', marginBottom: '20px', border: '1px solid #E2E8F0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <strong style={{ fontSize: '18px', color: cores.textoCard }}>{pedido.cliente}</strong>
+                <span style={{ backgroundColor: '#FEFCBF', color: '#B7791F', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>{pedido.status || 'Aguardando'}</span>
+              </div>
+              <p style={{ fontSize: '14px', color: cores.textoSuave, margin: '8px 0' }}>{pedido.servico} {pedido.horario && `• ${pedido.horario}`}</p>
+              {pedido.obs && (
+                <div style={{ backgroundColor: cores.fundo, padding: '12px', borderRadius: '8px', fontSize: '13px', color: '#718096', margin: '12px 0', fontStyle: 'italic' }}>
+                  "{pedido.obs}"
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                <button onClick={() => processarPedido(pedido.id, 'aceitar')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: cores.verde, color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
+                  ✓ Aceitar
+                </button>
+                <button onClick={() => processarPedido(pedido.id, 'recusar')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid', borderColor: cores.vermelho, backgroundColor: 'white', color: cores.vermelho, fontWeight: 'bold', cursor: 'pointer' }}>
+                  ✕ Recusar
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    );
+  };
 
   const RenderAssinatura = () => (
     <div className="animar-entrada" style={{ padding: '24px 20px', backgroundColor: cores.fundo, minHeight: '100vh', paddingBottom: '80px' }}>
@@ -189,11 +342,8 @@ export default function App() {
       <div style={{ backgroundColor: cores.navy, height: '140px', borderBottomLeftRadius: '24px', borderBottomRightRadius: '24px' }}></div>
       <div style={{ marginTop: '-60px', padding: '0 20px' }}>
         <div style={{ width: '120px', height: '120px', backgroundColor: '#CBD5E0', borderRadius: '50%', margin: '0 auto', border: '6px solid white', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}></div>
-        <h2 style={{ margin: '12px 0 4px 0', color: cores.textoCard, fontSize: '24px' }}>Carlos Melo</h2>
-        <p style={{ color: cores.azul, fontSize: '14px', fontWeight: '500', margin: '0 0 8px 0' }}>Eletricista Residencial</p>
-        <div style={{ color: cores.amarelo, fontSize: '18px' }}>
-          ★★★★★ <span style={{ color: cores.textoSuave, fontSize: '14px' }}>(4.8)</span>
-        </div>
+        <h2 style={{ margin: '12px 0 4px 0', color: cores.textoCard, fontSize: '24px' }}>Área do Prestador</h2>
+        <p style={{ color: cores.azul, fontSize: '14px', fontWeight: '500', margin: '0 0 8px 0' }}>Profissional Autônomo</p>
       </div>
 
       <div style={{ padding: '30px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -203,7 +353,7 @@ export default function App() {
         <button style={{ padding: '16px', backgroundColor: 'white', border: 'none', borderRadius: '16px', textAlign: 'left', fontWeight: 'bold', fontSize: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', cursor: 'pointer' }}>
           ⚙️ Configurações
         </button>
-        <button style={{ padding: '16px', backgroundColor: '#FFF5F5', border: 'none', borderRadius: '16px', textAlign: 'left', fontWeight: 'bold', fontSize: '16px', color: cores.vermelho, marginTop: '20px', cursor: 'pointer' }}>
+        <button onClick={fazerLogout} style={{ padding: '16px', backgroundColor: '#FFF5F5', border: 'none', borderRadius: '16px', textAlign: 'left', fontWeight: 'bold', fontSize: '16px', color: cores.vermelho, marginTop: '20px', cursor: 'pointer' }}>
           🚪 Sair da conta
         </button>
       </div>
@@ -216,7 +366,7 @@ export default function App() {
         <button onClick={() => setTela('perfil')} style={{ background: 'none', border: 'none', color: cores.textoSuave, marginBottom: '30px', padding: 0, fontSize: '16px', cursor: 'pointer' }}>
           ⬅️ Voltar
         </button>
-        <p style={{ margin: '0 0 8px 0', color: cores.textoSuave }}>Abril 2024 • 4 serviços</p>
+        <p style={{ margin: '0 0 8px 0', color: cores.textoSuave }}>Este Mês • 4 serviços</p>
         <h1 style={{ margin: 0, fontSize: '42px', fontWeight: 'bold' }}>R$ 480,00</h1>
       </div>
       <div style={{ backgroundColor: 'white', borderTopLeftRadius: '30px', borderTopRightRadius: '30px', minHeight: '60vh', padding: '30px 20px', color: cores.textoCard }}>
@@ -249,6 +399,7 @@ export default function App() {
           </div>
         ) : (
           <>
+            {tela === 'login' && <RenderLogin />}
             {tela === 'home' && <RenderHome />}
             {tela === 'pedidos' && <RenderPedidos />}
             {tela === 'assinatura' && <RenderAssinatura />}
@@ -256,7 +407,7 @@ export default function App() {
             {tela === 'ganhos' && <RenderGanhos />}
           </>
         )}
-        {tela !== 'ganhos' && <BottomNav />}
+        {tela !== 'ganhos' && tela !== 'login' && <BottomNav />}
       </div>
     </>
   );
